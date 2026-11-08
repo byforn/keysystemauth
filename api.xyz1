@@ -15,7 +15,18 @@ local function validateKeyLocally(inputKey)
 		return false, "Failed to connect to key server."
 	end
 
-	if not response:find(inputKey, 1, true) then
+	local cleanInput = inputKey:gsub("%s+", ""):lower()
+	local found = false
+
+	for line in response:gmatch("[^\r\n]+") do
+		local cleanLine = line:gsub("%s+", ""):lower()
+		if cleanLine ~= "" and cleanLine == cleanInput then
+			found = true
+			break
+		end
+	end
+
+	if not found then
 		return false, "Incorrect key."
 	end
 
@@ -24,7 +35,8 @@ local function validateKeyLocally(inputKey)
 		if readSuccess then
 			local dataOK, decoded = pcall(HttpService.JSONDecode, HttpService, fileContent)
 			if dataOK and decoded then
-				if decoded.key == inputKey then
+				local cleanSaved = tostring(decoded.key):gsub("%s+", ""):lower()
+				if cleanSaved == cleanInput then
 					if os.time() - decoded.timestamp > 86400 then
 						return false, "Key has expired (24h limit reached)."
 					end
