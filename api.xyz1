@@ -1,0 +1,246 @@
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local localPlayer = Players.LocalPlayer
+
+local KEY_URL = "https://raw.githubusercontent.com/byforn/lua/refs/heads/main/nwoqkwjaja"
+local GET_KEY_URL = "https://qthc.netlify.app"
+local FILE_PATH = "PYPublicFarm/key_data.json"
+
+local function getClientHWID()
+	local hwid = "unknown_device"
+	pcall(function()
+		if type(gethwid) == "function" then
+			hwid = gethwid() or "none"
+		elseif type(getfingerprintid) == "function" then
+			hwid = getfingerprintid() or "none"
+		elseif type(getdeviceid) == "function" then
+			hwid = getdeviceid() or "none"
+		end
+	end)
+	return hwid
+end
+
+local function validateKeyLocally(inputKey)
+	local success, response = pcall(function()
+		return game:HttpGet(KEY_URL)
+	end)
+
+	if not success or not response then
+		return false, "Failed to connect to key server."
+	end
+
+	if not response:find(inputKey, 1, true) then
+		return false, "Incorrect key."
+	end
+
+	if isfile(FILE_PATH) then
+		local readSuccess, fileContent = pcall(readfile, FILE_PATH)
+		if readSuccess then
+			local dataOK, decoded = pcall(HttpService.JSONDecode, HttpService, fileContent)
+			if dataOK and decoded then
+				if decoded.key == inputKey then
+					if decoded.hwid ~= getClientHWID() then
+						return false, "Key is tied to a different device."
+					end
+					if os.time() - decoded.timestamp > 86400 then
+						return false, "Key has expired (24h limit reached)."
+					end
+					return true, "Key valid!"
+				end
+			end
+		end
+	end
+
+	local newSessionData = {
+		key = inputKey,
+		hwid = getClientHWID(),
+		timestamp = os.time()
+	}
+	
+	pcall(function()
+		if not isfolder("PYPublicFarm") then
+			makefolder("PYPublicFarm")
+		end
+		writefile(FILE_PATH, HttpService:JSONEncode(newSessionData))
+	end)
+
+	return true, "Key valid!"
+end
+
+local function createKeySystemUI()
+	local playerGui = localPlayer:WaitForChild("PlayerGui")
+	
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "KeySystemUI"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = playerGui
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 340, 0, 160)
+	frame.Position = UDim2.new(0.5, -170, 0.5, -80)
+	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	frame.BorderSizePixel = 0
+	frame.Parent = screenGui
+
+	local uiCorner = Instance.new("UICorner")
+	uiCorner.CornerRadius = UDim.new(0, 8)
+	uiCorner.Parent = frame
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Text = "Project Yielding Keysystem"
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextSize = 18
+	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Size = UDim2.new(1, -20, 0, 30)
+	titleLabel.Position = UDim2.new(0, 10, 0, 10)
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Parent = frame
+
+	local subLabel = Instance.new("TextLabel")
+	subLabel.Text = "Enter key:"
+	subLabel.Font = Enum.Font.Gotham
+	subLabel.TextSize = 14
+	subLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	subLabel.BackgroundTransparency = 1
+	subLabel.Size = UDim2.new(1, -20, 0, 20)
+	subLabel.Position = UDim2.new(0, 10, 0, 45)
+	subLabel.TextXAlignment = Enum.TextXAlignment.Left
+	subLabel.Parent = frame
+
+	local textBox = Instance.new("TextBox")
+	textBox.PlaceholderText = "Key here..."
+	textBox.Text = ""
+	textBox.Font = Enum.Font.Gotham
+	textBox.TextSize = 14
+	textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	textBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+	textBox.Size = UDim2.new(1, -170, 0, 32)
+	textBox.Position = UDim2.new(0, 10, 0, 75)
+	textBox.ClearTextOnFocus = false
+	textBox.Parent = frame
+
+	local uiCorner2 = Instance.new("UICorner")
+	uiCorner2.CornerRadius = UDim.new(0, 6)
+	uiCorner2.Parent = textBox
+
+	local getKeyBtn = Instance.new("TextButton")
+	getKeyBtn.Text = "Get Key"
+	getKeyBtn.Font = Enum.Font.GothamBold
+	getKeyBtn.TextSize = 14
+	getKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	getKeyBtn.BackgroundColor3 = Color3.fromRGB(90, 90, 100)
+	getKeyBtn.Size = UDim2.new(0, 70, 0, 32)
+	getKeyBtn.Position = UDim2.new(1, -170, 0, 75)
+	getKeyBtn.Parent = frame
+
+	local uiCorner3 = Instance.new("UICorner")
+	uiCorner3.CornerRadius = UDim.new(0, 6)
+	uiCorner3.Parent = getKeyBtn
+
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Text = ""
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextSize = 13
+	statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Size = UDim2.new(1, -20, 0, 20)
+	statusLabel.Position = UDim2.new(0, 10, 0, 115)
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statusLabel.Parent = frame
+
+	getKeyBtn.MouseButton1Click:Connect(function()
+		if setclipboard then
+			setclipboard(GET_KEY_URL)
+			statusLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
+			statusLabel.Text = "Key link copied!"
+		else
+			statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+			statusLabel.Text = "Clipboard function not supported."
+		end
+	end)
+
+	local checkBtn = Instance.new("TextButton")
+	checkBtn.Text = "Check"
+	checkBtn.Font = Enum.Font.GothamBold
+	checkBtn.TextSize = 14
+	checkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	checkBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 220)
+	checkBtn.Size = UDim2.new(0, 80, 0, 32)
+	checkBtn.Position = UDim2.new(1, -90, 0, 75)
+	checkBtn.Parent = frame
+
+	local uiCorner4 = Instance.new("UICorner")
+	uiCorner4.CornerRadius = UDim.new(0, 6)
+	uiCorner4.Parent = checkBtn
+
+	local bindableEvent = Instance.new("BindableEvent")
+
+	checkBtn.MouseButton1Click:Connect(function()
+		local inputKey = textBox.Text
+		if inputKey == "" then
+			statusLabel.Text = "Please enter a key."
+			return
+		end
+		checkBtn.Text = "Checking..."
+		checkBtn.AutoButtonColor = false
+		
+		local isValid, message = validateKeyLocally(inputKey)
+
+		if isValid then
+			statusLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
+			statusLabel.Text = message
+			task.wait(0.5)
+			screenGui:Destroy()
+			bindableEvent:Fire(inputKey, true)
+		else
+			checkBtn.Text = "Check"
+			checkBtn.AutoButtonColor = true
+			statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+			statusLabel.Text = message
+		end
+	end)
+
+	local keyText, success = bindableEvent.Event:Wait()
+	return keyText, success
+end
+
+local function checkSavedSession()
+	if isfile(FILE_PATH) then
+		local readSuccess, fileContent = pcall(readfile, FILE_PATH)
+		if readSuccess then
+			local dataOK, decoded = pcall(HttpService.JSONDecode, HttpService, fileContent)
+			if dataOK and decoded and decoded.key then
+				local isValid, _ = validateKeyLocally(decoded.key)
+				if isValid then
+					_G.KeyValidated = true
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+local function runMainScript()
+	local success, err = pcall(function()
+		loadstring(game:HttpGet(KEY_URL))()
+	end)
+	if not success then
+		warn("Failed to load main script:", err)
+	end
+end
+
+if checkSavedSession() then
+	runMainScript()
+else
+	local keyText, success = createKeySystemUI()
+	if success then
+		_G.KeyValidated = true
+		runMainScript()
+	else
+		localPlayer:Kick("[Project Yielding] Invalid key or session expired!")
+		task.wait(2)
+		game:Shutdown()
+	end
+end
