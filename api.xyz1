@@ -6,20 +6,6 @@ local KEY_URL = "https://raw.githubusercontent.com/byforn/lua/refs/heads/main/nw
 local GET_KEY_URL = "https://qthc.netlify.app"
 local FILE_PATH = "PYPublicFarm/key_data.json"
 
-local function getClientHWID()
-	local hwid = "unknown_device"
-	pcall(function()
-		if type(gethwid) == "function" then
-			hwid = gethwid() or "none"
-		elseif type(getfingerprintid) == "function" then
-			hwid = getfingerprintid() or "none"
-		elseif type(getdeviceid) == "function" then
-			hwid = getdeviceid() or "none"
-		end
-	end)
-	return hwid
-end
-
 local function validateKeyLocally(inputKey)
 	local success, response = pcall(function()
 		return game:HttpGet(KEY_URL)
@@ -39,9 +25,6 @@ local function validateKeyLocally(inputKey)
 			local dataOK, decoded = pcall(HttpService.JSONDecode, HttpService, fileContent)
 			if dataOK and decoded then
 				if decoded.key == inputKey then
-					if decoded.hwid ~= getClientHWID() then
-						return false, "Key is tied to a different device."
-					end
 					if os.time() - decoded.timestamp > 86400 then
 						return false, "Key has expired (24h limit reached)."
 					end
@@ -53,7 +36,6 @@ local function validateKeyLocally(inputKey)
 
 	local newSessionData = {
 		key = inputKey,
-		hwid = getClientHWID(),
 		timestamp = os.time()
 	}
 	
